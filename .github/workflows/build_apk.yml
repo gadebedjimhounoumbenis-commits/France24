@@ -18,7 +18,7 @@ jobs:
 
       # Génère android/, ios/, etc. sans écraser pubspec.yaml ni lib/
       - name: Scaffold platform folders
-        run: flutter create .
+        run: flutter create --project-name news_app --org com.example .
 
       - name: Get dependencies
         run: flutter pub get
