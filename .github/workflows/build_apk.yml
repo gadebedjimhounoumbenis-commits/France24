@@ -20,6 +20,11 @@ jobs:
       - name: Scaffold platform folders
         run: flutter create --project-name news_app --org com.example .
 
+      # Corrige la version de Kotlin (trop ancienne dans le template par défaut)
+      - name: Update Kotlin version
+        run: |
+          sed -i "s/id 'org.jetbrains.kotlin.android' version '[^']*'/id 'org.jetbrains.kotlin.android' version '1.9.24'/" android/settings.gradle
+
       - name: Get dependencies
         run: flutter pub get
 
