@@ -24,8 +24,13 @@ jobs:
       - name: Update Kotlin version
         run: |
           sed -i -E 's/(id [\"'"'"']org\.jetbrains\.kotlin\.android[\"'"'"'] version )[\"'"'"'][^\"'"'"']*[\"'"'"']/\1"1.9.24"/' android/settings.gradle
-          echo "----- Contenu de settings.gradle après modification -----"
-          cat android/settings.gradle
+
+      # Ajoute la permission INTERNET (indispensable pour charger les flux RSS)
+      - name: Add INTERNET permission
+        run: |
+          sed -i 's/<manifest xmlns:android="http:\/\/schemas.android.com\/apk\/res\/android">/<manifest xmlns:android="http:\/\/schemas.android.com\/apk\/res\/android">\n    <uses-permission android:name="android.permission.INTERNET" \/>/' android/app/src/main/AndroidManifest.xml
+          echo "----- Contenu du AndroidManifest.xml après modification -----"
+          cat android/app/src/main/AndroidManifest.xml
 
       - name: Get dependencies
         run: flutter pub get
