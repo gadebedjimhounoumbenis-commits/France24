@@ -61,57 +61,120 @@ class _CategoryList extends StatefulWidget {
 }
 
 class _CategoryListState extends State<_CategoryList> {
-  late Future<List<Article>> _future;
+  List<Article> _articles = [];
+  bool _loading = true;
+  bool _isOffline = false;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _future = widget.service.fetchArticles(widget.category);
+    _init();
+  }
+
+  Future<void> _init() async {
+    // 1) Affiche immédiatement le cache s'il existe
+    final cached = await widget.service.loadCachedArticles(widget.category);
+    if (cached.isNotEmpty && mounted) {
+      setState(() {
+        _articles = cached;
+        _loading = false;
+      });
+    }
+    // 2) Rafraîchit depuis le réseau
+    await _refresh();
   }
 
   Future<void> _refresh() async {
-    setState(() {
-      _future = widget.service.fetchArticles(widget.category);
-    });
-    await _future;
+    try {
+      final fresh = await widget.service.fetchArticles(widget.category);
+      if (!mounted) return;
+      setState(() {
+        _articles = fresh;
+        _loading = false;
+        _isOffline = false;
+        _errorMessage = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        if (_articles.isNotEmpty) {
+          _isOffline = true; // on garde le cache affiché, juste un bandeau
+        } else {
+          _errorMessage = 'Impossible de charger les articles.\nVérifie ta connexion internet.';
+        }
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<Article>>(
-      future: _future,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return Center(child: Text('Erreur : ${snapshot.error}'));
-        }
-        final articles = snapshot.data ?? [];
-        if (articles.isEmpty) {
-          return const Center(child: Text('Aucun article trouvé'));
-        }
-        return RefreshIndicator(
-          onRefresh: _refresh,
-          child: ListView.builder(
-            itemCount: articles.length,
-            itemBuilder: (context, index) {
-              final article = articles[index];
-              return ArticleCard(
-                article: article,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ArticleDetailScreen(article: article),
-                    ),
-                  );
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_errorMessage != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.wifi_off, size: 48, color: Colors.grey),
+              const SizedBox(height: 16),
+              Text(_errorMessage!, textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: () {
+                  setState(() => _loading = true);
+                  _refresh();
                 },
-              );
-            },
+                icon: const Icon(Icons.refresh),
+                label: const Text('Réessayer'),
+              ),
+            ],
           ),
-        );
-      },
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      child: Column(
+        children: [
+          if (_isOffline)
+            Container(
+              width: double.infinity,
+              color: Colors.orange[100],
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              child: const Text(
+                '⚠ Hors connexion — affichage des derniers articles enregistrés',
+                style: TextStyle(fontSize: 12),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          Expanded(
+            child: ListView.builder(
+              itemCount: _articles.length,
+              itemBuilder: (context, index) {
+                final article = _articles[index];
+                return ArticleCard(
+                  article: article,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ArticleDetailScreen(article: article),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
