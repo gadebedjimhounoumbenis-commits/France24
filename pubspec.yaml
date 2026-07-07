@@ -1,24 +1,45 @@
-name: news_app
-description: Application d'actualités
-publish_to: 'none'
-version: 1.0.0+1
+name: Build APK
 
-environment:
-  sdk: '>=3.0.0 <4.0.0'
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
 
-dependencies:
-  flutter:
-    sdk: flutter
-  http: ^1.2.0
-  xml: ^6.5.0
-  cupertino_icons: ^1.0.6
-  url_launcher: ^6.2.5
-  cached_network_image: ^3.3.1
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  flutter_lints: ^4.0.0
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
 
-flutter:
-  uses-material-design: true
+      # Génère android/, ios/, etc. sans écraser pubspec.yaml ni lib/
+      - name: Scaffold platform folders
+        run: flutter create --project-name news_app --org com.example .
+
+      # Corrige la version de Kotlin (trop ancienne dans le template par défaut)
+      - name: Update Kotlin version
+        run: |
+          sed -i -E 's/(id [\"'"'"']org\.jetbrains\.kotlin\.android[\"'"'"'] version )[\"'"'"'][^\"'"'"']*[\"'"'"']/\1"1.9.24"/' android/settings.gradle
+
+      # Ajoute la permission INTERNET (indispensable pour charger les flux RSS)
+      - name: Add INTERNET permission
+        run: |
+          sed -i 's/<manifest xmlns:android="http:\/\/schemas.android.com\/apk\/res\/android">/<manifest xmlns:android="http:\/\/schemas.android.com\/apk\/res\/android">\n    <uses-permission android:name="android.permission.INTERNET" \/>/' android/app/src/main/AndroidManifest.xml
+          echo "----- Contenu du AndroidManifest.xml après modification -----"
+          cat android/app/src/main/AndroidManifest.xml
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
