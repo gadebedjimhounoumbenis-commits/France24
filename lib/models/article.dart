@@ -14,4 +14,22 @@ class Article {
     required this.imageUrl,
     required this.category,
   });
+
+  Map<String, dynamic> toJson() => {
+        'title': title,
+        'description': description,
+        'link': link,
+        'pubDate': pubDate,
+        'imageUrl': imageUrl,
+        'category': category,
+      };
+
+  factory Article.fromJson(Map<String, dynamic> json) => Article(
+        title: json['title'] ?? '',
+        description: json['description'] ?? '',
+        link: json['link'] ?? '',
+        pubDate: json['pubDate'] ?? '',
+        imageUrl: json['imageUrl'] ?? '',
+        category: json['category'] ?? '',
+      );
 }
